@@ -1,0 +1,120 @@
+// Movewin: a menu-bar app for arranging windows. For now, Rectangle's keyboard snaps.
+import AppKit
+import ApplicationServices
+import Carbon
+import MovewinCore
+import ServiceManagement
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    let hotkeys = Hotkeys()
+    let snapper = Snapper()
+    var failed: [SnapAction] = []   // shortcuts that couldn't be registered
+    let rectangle = "com.knollsoft.Rectangle"
+
+    // menu sections, in order
+    let groups: [[SnapAction]] = [
+        [.leftHalf, .rightHalf, .topHalf, .bottomHalf],
+        [.topLeft, .topRight, .bottomLeft, .bottomRight],
+        [.firstThird, .centerThird, .lastThird, .firstTwoThirds, .centerTwoThirds, .lastTwoThirds],
+        [.maximize, .maximizeHeight, .center, .larger, .smaller, .restore],
+        [.previousDisplay, .nextDisplay],
+    ]
+
+    func applicationDidFinishLaunching(_ n: Notification) {
+        item.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Movewin")
+        item.menu = NSMenu()
+        item.menu!.delegate = self
+        // Rectangle gets the same key presses, so both would snap (and the second snap counts as
+        // a repeat). Leave the shortcuts to it while it runs.
+        let ws = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            ws.addObserver(forName: name, object: nil, queue: .main) { [unowned self] n in
+                let a = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                if a?.bundleIdentifier == rectangle { updateShortcuts() }
+            }
+        }
+        updateShortcuts()
+        // movewin://execute-action?name=left-half, like Rectangle's rectangle:// links
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(openURL(_:reply:)),
+                                                     forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+        // asks for Accessibility access the first time
+        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+    }
+
+    var rectangleRunning: Bool { !NSRunningApplication.runningApplications(withBundleIdentifier: rectangle).isEmpty }
+
+    func updateShortcuts() {
+        hotkeys.unregisterAll()
+        failed = []
+        guard !rectangleRunning else { return }
+        for (action, s) in shortcuts.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
+            if !hotkeys.register(s, { [unowned self] in snapper.run(action) }) { failed.append(action) }
+        }
+    }
+
+    // rebuilt each time it opens, so the permission and login items are current
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        if !AXIsProcessTrusted() {
+            menu.addItem(withTitle: "Allow Accessibility Access…", action: #selector(openAccessibility), keyEquivalent: "").target = self
+            menu.addItem(.separator())
+        }
+        if rectangleRunning {
+            menu.addItem(withTitle: "Shortcuts are off while Rectangle runs", action: nil, keyEquivalent: "")
+            menu.addItem(withTitle: "Quit Rectangle", action: #selector(quitRectangle), keyEquivalent: "").target = self
+            menu.addItem(.separator())
+        } else if !failed.isEmpty {
+            menu.addItem(withTitle: "\(failed.count) shortcuts couldn't be set up", action: nil, keyEquivalent: "")
+            menu.addItem(.separator())
+        }
+        for group in groups {
+            for action in group {
+                let mi = menu.addItem(withTitle: action.title, action: #selector(runAction), keyEquivalent: "")
+                mi.target = self
+                mi.representedObject = action.rawValue
+                if let s = shortcuts[action], !hotkeys.isEmpty, !failed.contains(action) {
+                    mi.keyEquivalent = s.keyEquivalent
+                    mi.keyEquivalentModifierMask = s.mods
+                }
+            }
+            menu.addItem(.separator())
+        }
+        let login = menu.addItem(withTitle: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
+        login.target = self
+        login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(withTitle: "Quit Movewin", action: #selector(NSApplication.terminate), keyEquivalent: "q")
+    }
+
+    @objc func runAction(_ mi: NSMenuItem) {
+        // the menu doesn't take focus from the frontmost app, so this acts on its window
+        if let raw = mi.representedObject as? String, let a = SnapAction(rawValue: raw) { snapper.run(a) }
+    }
+
+    @objc func openURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let s = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue, let url = URLComponents(string: s),
+              url.host == "execute-action", let name = url.queryItems?.first(where: { $0.name == "name" })?.value,
+              let action = SnapAction(cliName: name) else { return NSSound.beep() }
+        snapper.run(action)
+    }
+
+    @objc func quitRectangle() {
+        NSRunningApplication.runningApplications(withBundleIdentifier: rectangle).forEach { $0.terminate() }
+    }
+
+    @objc func openAccessibility() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
+
+    @objc func toggleLogin() {
+        let s = SMAppService.mainApp
+        do { try s.status == .enabled ? s.unregister() : s.register() }
+        catch { NSAlert(error: error).runModal() }
+    }
+}
+
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)
+app.run()
