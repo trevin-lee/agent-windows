@@ -79,3 +79,7 @@ Tests/Integration/run.sh          # snaps a real test window; meant for CI
 ```
 
 CI runs both on GitHub's macOS runners.
+
+## License
+
+[AGPL-3.0](LICENSE). Copyright © 2026 Trevin Lee.
