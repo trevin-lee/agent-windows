@@ -1,6 +1,6 @@
 import CoreGraphics
 import XCTest
-@testable import MovewinCore
+@testable import TileSpaceCore
 
 // The MacBook above-left of the ultrawide, roughly as set up (visible areas lose the menu bar).
 let macbook = Screen(name: "Built-in", frame: CGRect(x: 0, y: 0, width: 1728, height: 1117),

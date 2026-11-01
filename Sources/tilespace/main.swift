@@ -1,4 +1,4 @@
-// movewin: move a window to another native macOS desktop (Space) with SIP on.
+// tilespace: move windows between native macOS desktops (Spaces) and snap them, with SIP on.
 //
 // macOS has no API for moving a window to another desktop, and on macOS 27 it ignores
 // synthetic title-bar drags. But moving a window onto another display puts it on
@@ -6,14 +6,14 @@
 // works). So: park the window on the other display, switch its home display to the
 // target desktop, move the window back to exactly where it was.
 //
-//   movewin list                       every window, with its desktop and id
-//   movewin spaces                     desktops per display (* = showing)
-//   movewin <window> <desktop>         desktop is 1-based, on the window's display
-//   movewin <window> <desktop> <display>   ...on another display ("odyssey", "built-in")
-//   movewin snap <action> [<window>]   a Rectangle-style snap, e.g. left-half (no window =
-//                                      the frontmost app's)
+//   tilespace list                          every window, with its desktop and id
+//   tilespace spaces                        desktops per display (* = showing)
+//   tilespace move <window> <desktop>       desktop is 1-based, on the window's display
+//   tilespace move <window> <desktop> <display>   ...on another display ("odyssey", "built-in")
+//   tilespace snap <action> [<window>]      a Rectangle-style snap, e.g. left-half (no window =
+//                                           the frontmost app's)
 //
-// <window> is a window id from `movewin list`, or text matched against
+// <window> is a window id from `tilespace list`, or text matched against
 // "<app> <title>" (case-insensitive, first match). The window must be on a desktop
 // that's showing. --follow stays on the target desktop instead of switching back.
 // Needs two displays.
@@ -22,15 +22,15 @@
 // (MacBook first): Ctrl+1..9, Ctrl+0 = 10, Ctrl+Option+1..6 = 11..16. These are set
 // in System Settings > Keyboard > Keyboard Shortcuts > Mission Control.
 //
-// Build: swift build -c release, then copy .build/release/movewin to ~/.local/bin
+// Build: swift build -c release, then copy .build/release/tilespace to ~/.local/bin
 import AppKit
 import ApplicationServices
 import CoreGraphics
-import MovewinCore
+import TileSpaceCore
 
 // set a frame and give the app time to apply it
 func setFrame(_ el: AXUIElement, _ r: CGRect) {
-    MovewinCore.setFrame(el, r)
+    TileSpaceCore.setFrame(el, r)
     usleep(250_000)
 }
 
@@ -59,7 +59,7 @@ case "list":
     rows.sorted().forEach { print($0) }
 case "snap":
     guard args.count >= 2, let action = SnapAction(cliName: args[1]), action != .restore else {
-        die("usage: movewin snap <action> [<window>]\nactions: " +
+        die("usage: tilespace snap <action> [<window>]\nactions: " +
             SnapAction.allCases.filter { $0 != .restore }.map(\.cliName).joined(separator: " "))
     }
     let el: AXUIElement
@@ -81,13 +81,14 @@ case "spaces":
         let s = d.spaces.enumerated().map { "\($0.offset + 1)\($0.element == d.current ? "*" : "")" }.joined(separator: " ")
         print("\(displayName(d.uuid)): \(s)")
     }
-case let q? where args.count == 3:
+case "move" where args.count == 4:
     // to a desktop on another display: show that desktop there, then move the window onto it
-    guard let target = Int(args[1]), target >= 1 else { die("desktop must be a number starting at 1") }
-    guard let w = find(q) else { die("no window on a showing desktop matches '\(q)'; try `movewin list`") }
+    let q = args[1]
+    guard let target = Int(args[2]), target >= 1 else { die("desktop must be a number starting at 1") }
+    guard let w = find(q) else { die("no window on a showing desktop matches '\(q)'; try `tilespace list`") }
     let all = managedSpaces()
-    guard let d = all.first(where: { displayName($0.uuid).lowercased().contains(args[2].lowercased()) }),
-          let dest = displayBounds(d.uuid) else { die("no display matches '\(args[2])'") }
+    guard let d = all.first(where: { displayName($0.uuid).lowercased().contains(args[3].lowercased()) }),
+          let dest = displayBounds(d.uuid) else { die("no display matches '\(args[3])'") }
     guard target <= d.spaces.count else { die("\(displayName(d.uuid)) only has \(d.spaces.count) desktops") }
     let offset = all.prefix(while: { $0.uuid != d.uuid }).reduce(0) { $0 + $1.spaces.count }
     guard let el = axWindow(w) else { die("can't reach \(w.app)'s window through Accessibility") }
@@ -96,10 +97,11 @@ case let q? where args.count == 3:
     setFrame(el, CGRect(x: dest.midX - size.width / 2, y: dest.midY - size.height / 2, width: size.width, height: size.height))
     usleep(300_000)
     if spaces(of: w.id) == [d.spaces[target - 1]] { print("moved \(w.app) — \(w.title) to desktop \(target) on \(displayName(d.uuid))") }
-    else { die("\(w.app) didn't land on desktop \(target); check `movewin list`") }
-case let q? where args.count == 2:
-    guard let target = Int(args[1]), target >= 1 else { die("desktop must be a number starting at 1") }
-    guard let w = find(q) else { die("no window on a showing desktop matches '\(q)'; try `movewin list`") }
+    else { die("\(w.app) didn't land on desktop \(target); check `tilespace list`") }
+case "move" where args.count == 3:
+    let q = args[1]
+    guard let target = Int(args[2]), target >= 1 else { die("desktop must be a number starting at 1") }
+    guard let w = find(q) else { die("no window on a showing desktop matches '\(q)'; try `tilespace list`") }
     // which display/desktop the window belongs to (by desktop membership, so it works
     // even for a window hanging off the edge of its screen)
     let mine = spaces(of: w.id)
@@ -126,7 +128,12 @@ case let q? where args.count == 2:
     let arrived = spaces(of: w.id) == [d.spaces[target - 1]]
     if !follow { switchTo(offset + cur + 1) }
     if arrived { print("moved \(w.app) — \(w.title) to desktop \(target) on \(displayName(uuid))") }
-    else { die("\(w.app) didn't land on desktop \(target); check `movewin list`") }
+    else { die("\(w.app) didn't land on desktop \(target); check `tilespace list`") }
 default:
-    print("usage: movewin list | movewin spaces | movewin <window id or text> <desktop> [<display>] [--follow] | movewin snap <action> [<window>]")
+    print("""
+        usage: tilespace list
+               tilespace spaces
+               tilespace move <window id or text> <desktop> [<display>] [--follow]
+               tilespace snap <action> [<window id or text>]
+        """)
 }

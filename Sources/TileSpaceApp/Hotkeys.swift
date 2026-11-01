@@ -58,7 +58,7 @@ final class Hotkeys {
     func register(_ s: Shortcut, _ handler: @escaping () -> Void) -> Bool {
         let n = UInt32(handlers.count + 1)
         var ref: EventHotKeyRef?
-        let err = RegisterEventHotKey(s.key, s.carbonMods, EventHotKeyID(signature: OSType(0x6D766E77), id: n),  // 'mvnw'
+        let err = RegisterEventHotKey(s.key, s.carbonMods, EventHotKeyID(signature: OSType(0x746C7370), id: n),  // 'tlsp'
                                       GetApplicationEventTarget(), 0, &ref)
         guard err == noErr, let ref else { return false }
         refs.append(ref)

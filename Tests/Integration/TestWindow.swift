@@ -10,7 +10,7 @@ app.setActivationPolicy(.regular)
 
 let window = NSWindow(contentRect: NSRect(x: 200, y: 200, width: 800, height: 600),
                       styleMask: [.titled, .resizable, .closable, .miniaturizable], backing: .buffered, defer: false)
-window.title = "agent-windows test"
+window.title = "tilespace test"
 window.makeKeyAndOrderFront(nil)
 app.activate(ignoringOtherApps: true)
 

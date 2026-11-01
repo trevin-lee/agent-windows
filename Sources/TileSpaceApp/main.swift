@@ -1,8 +1,8 @@
-// Movewin: a menu-bar app for arranging windows. For now, Rectangle's keyboard snaps.
+// TileSpace: a menu-bar app for arranging windows. For now, Rectangle's keyboard snaps.
 import AppKit
 import ApplicationServices
 import Carbon
-import MovewinCore
+import TileSpaceCore
 import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ]
 
     func applicationDidFinishLaunching(_ n: Notification) {
-        item.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "Movewin")
+        item.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "TileSpace")
         item.menu = NSMenu()
         item.menu!.delegate = self
         // Rectangle gets the same key presses, so both would snap (and the second snap counts as
@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         updateShortcuts()
-        // movewin://execute-action?name=left-half, like Rectangle's rectangle:// links
+        // tilespace://execute-action?name=left-half, like Rectangle's rectangle:// links
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(openURL(_:reply:)),
                                                      forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
         // asks for Accessibility access the first time
@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let login = menu.addItem(withTitle: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(withTitle: "Quit Movewin", action: #selector(NSApplication.terminate), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit TileSpace", action: #selector(NSApplication.terminate), keyEquivalent: "q")
     }
 
     @objc func runAction(_ mi: NSMenuItem) {

@@ -2,7 +2,7 @@
 // cycle and cross displays) and its frame from before the first one (for Restore).
 import AppKit
 import Carbon
-import MovewinCore
+import TileSpaceCore
 
 // Rectangle's Magnet-style defaults, the set in use before this app.
 let shortcuts: [SnapAction: Shortcut] = {

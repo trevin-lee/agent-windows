@@ -1,12 +1,12 @@
-# agent-windows
+# TileSpace
 
 Window management for macOS that works with SIP on and with macOS's own desktops (Spaces).
 
 Early and changing fast. What works today:
 
-- **`movewin`, a command-line tool**, that moves a window to another desktop. macOS has no
+- **`tilespace`, a command-line tool**, that moves a window to another desktop. macOS has no
   API for that, and macOS 27 ignores synthetic title-bar drags. But moving a window onto
-  another display puts it on whatever desktop that display is showing. So `movewin` parks the
+  another display puts it on whatever desktop that display is showing. So `tilespace` parks the
   window on the other display, switches the window's home display to the target desktop, and
   moves the window back to its exact frame. It checks the result with the read-only SkyLight
   call `SLSCopySpacesForWindows`. Needs two displays for now.
@@ -25,7 +25,7 @@ windows on when there's only one screen.
 Needs macOS 14 or later and Xcode's command-line tools.
 
 ```sh
-scripts/build-app.sh --install   # ~/Applications/Movewin.app and ~/.local/bin/movewin
+scripts/build-app.sh --install   # ~/Applications/TileSpace.app and ~/.local/bin/tilespace
 ```
 
 The app asks for Accessibility access the first time it runs. The build script signs with
@@ -51,18 +51,18 @@ otherwise act on every key press. Its menu has a Quit Rectangle button.
 | ⌃⌥⌘ ← → | Previous, next display |
 
 Scripts and launchers can trigger the same actions:
-`open -g "movewin://execute-action?name=left-half"`.
+`open -g "tilespace://execute-action?name=left-half"`.
 
 ```sh
-movewin list                          # every window, with its desktop and id
-movewin spaces                        # desktops per display (* = showing)
-movewin <window> <desktop>            # move a window to desktop N on its display
-movewin <window> <desktop> <display>  # ...or on another display
-movewin snap <action> [<window>]      # e.g. movewin snap first-third
+tilespace list                               # every window, with its desktop and id
+tilespace spaces                             # desktops per display (* = showing)
+tilespace move <window> <desktop>            # move a window to desktop N on its display
+tilespace move <window> <desktop> <display>  # ...or on another display
+tilespace snap <action> [<window>]           # e.g. tilespace snap first-third
 ```
 
-`<window>` is a window id from `movewin list`, or text matched against the app name and
-window title. `movewin <window> <desktop>` presses the "Switch to Desktop N" shortcuts. Turn
+`<window>` is a window id from `tilespace list`, or text matched against the app name and
+window title. `tilespace move` presses the "Switch to Desktop N" shortcuts. Turn
 them on in System Settings > Keyboard > Keyboard Shortcuts > Mission Control.
 
 ## Caveats

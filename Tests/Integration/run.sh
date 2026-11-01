@@ -1,14 +1,14 @@
 #!/bin/zsh
-# End-to-end check on a real window: open a test window, snap it with `movewin snap`, and check
-# that it lands where movewin said it would. Moves only its own window, but it does take focus,
+# End-to-end check on a real window: open a test window, snap it with `tilespace snap`, and check
+# that it lands where tilespace said it would. Moves only its own window, but it does take focus,
 # so it's meant for CI (a macOS runner) more than a desk.
 #
 # Needs Accessibility access for whatever runs it (on a Mac: the terminal app).
 set -euo pipefail
 cd "${0:A:h}/../.."
 
-swift build -c release --product movewin
-movewin=.build/release/movewin
+swift build -c release --product tilespace
+tilespace=.build/release/tilespace
 mkdir -p build
 swiftc -O Tests/Integration/TestWindow.swift -o build/TestWindow
 cat > build/trusted.swift <<'EOF'
@@ -32,7 +32,7 @@ for action in left-half right-half top-half bottom-half top-left bottom-right \
               first-third center-third last-third first-two-thirds center-two-thirds last-two-thirds \
               maximize smaller larger center maximize-height; do
     # prints e.g. "left-half: 0,25 720x875"
-    said=$($movewin snap $action "agent-windows test")
+    said=$($tilespace snap $action "tilespace test")
     sleep 0.5
     want=(${(s: :)${${said#*: }/,/ }/x/ })
     got=(${(s: :)$(<$frame)})
@@ -43,8 +43,8 @@ for action in left-half right-half top-half bottom-half top-left bottom-right \
 done
 
 # the menu-bar app starts and keeps running
-build_app=.build/release/MovewinApp
-swift build -c release --product MovewinApp
+build_app=.build/release/TileSpaceApp
+swift build -c release --product TileSpaceApp
 $build_app & app=$!
 sleep 3
 if kill -0 $app 2>/dev/null; then echo "ok    menu-bar app runs"; kill $app
